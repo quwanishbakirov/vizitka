@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vizitka</title>
+
+  <style>
+    body { font-family: system-ui, Arial; padding: 20px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+    input { padding: 10px; font-size: 16px; width: 260px; }
+    button { padding: 10px 14px; font-size: 16px; cursor: pointer; }
+    canvas { max-width: 100%; border: 1px solid #ddd; margin-top: 16px; }
+    small { color: #555; display:block; margin-top:6px; }
+  </style>
+
+  <!-- Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="row">
+    <div>
+      <label>Telefon nomer:</label><br/>
+      <input id="phone" placeholder="+998 90 123-45-67" />
+      <small>Preview di basıp tekserip alıń.</small>
+    </div>
+
+    <button id="previewBtn">Preview</button>
+    <button id="a4DoubleBtn">A4 PDF</button>
+  </div>
+
+  <canvas id="c" width="1200" height="700"></canvas>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const phoneInput = document.getElementById("phone");
+
+    // ====== TEMPLATE (FRONT) ======
+    const template = new Image();
+    template.src = "template.png";
+
+    // ====== BACK TEMPLATE (2-sahifa uchun) ======
+    const template2 = new Image();
+    template2.src = "template2.png";
+
+    // ====== TELEFON MATN JOYLASHUVI ======
+    const PHONE_X = 80;
+    const PHONE_Y = 189;
+
+    // ====== TELEFON STILI (Poppins) ======
+    const PHONE_FONT = "600 25px Poppins";
+    const PHONE_COLOR = "#1b1f2a";
+
+    // ====== PDF GRID SETTINGS (ikkala sahifada ham bir xil) ======
+    const PAGE_W = 210, PAGE_H = 297; // A4 mm
+    const COLS = 2, ROWS = 5;
+    const CARD_W = 90, CARD_H = 50;   // mm
+    const GAP_X = 10, GAP_Y = 8;      // mm
+
+    // Agar duplexda orqa tomon chap-o‘ng teskari chiqsa -> true qilib ko‘ring
+    const MIRROR_BACK = false;
+
+    function waitImage(img) {
+      return new Promise((res, rej) => {
+        if (img.complete && img.naturalWidth) return res();
+        img.onload = () => res();
+        img.onerror = rej;
+      });
+    }
+
+    async function ensureReady() {
+      await Promise.all([
+        waitImage(template),
+        waitImage(template2),
+        document.fonts.load(PHONE_FONT)
+      ]);
+
+      canvas.width = template.naturalWidth;
+      canvas.height = template.naturalHeight;
+    }
+
+    async function render() {
+      await ensureReady();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(template, 0, 0);
+
+      const phone = phoneInput.value.trim();
+
+       // shrift/ko‘rinish
+        ctx.font = "25px Arial";
+        ctx.fillStyle = "#1b1f2a";
+        ctx.textBaseline = "middle";
+
+      if (phone) ctx.fillText(phone, PHONE_X, PHONE_Y);
+    }
+
+    document.getElementById("previewBtn").addEventListener("click", () => {
+      render();
+    });
+
+    function getGridStart() {
+      const startX = (PAGE_W - (COLS * CARD_W + (COLS - 1) * GAP_X)) / 2;
+      const startY = (PAGE_H - (ROWS * CARD_H + (ROWS - 1) * GAP_Y)) / 2;
+      return { startX, startY };
+    }
+
+    function placeGrid(pdf, imgData, mirror=false) {
+      const { startX, startY } = getGridStart();
+      let index = 0;
+
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          if (index >= 10) break;
+
+          const x = startX + col * (CARD_W + GAP_X);
+          const y = startY + row * (CARD_H + GAP_Y);
+
+          const finalX = mirror ? (PAGE_W - x - CARD_W) : x;
+
+          pdf.addImage(imgData, "PNG", finalX, y, CARD_W, CARD_H);
+          index++;
+        }
+      }
+    }
+
+    async function downloadA4PDF_DoubleSided() {
+      const { jsPDF } = window.jspdf;
+      await render(); // front tayyor
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      // 1-sahifa: front (canvas)
+      const frontImg = canvas.toDataURL("image/png");
+      placeGrid(pdf, frontImg, false);
+
+      // 2-sahifa: back (template2.png)
+      const off = document.createElement("canvas");
+      off.width = template2.naturalWidth;
+      off.height = template2.naturalHeight;
+
+      const offCtx = off.getContext("2d");
+      offCtx.drawImage(template2, 0, 0);
+
+      const backImg = off.toDataURL("image/png");
+
+      pdf.addPage("a4", "portrait");
+      placeGrid(pdf, backImg, MIRROR_BACK);
+
+      pdf.save("vizitka_front_back_A4.pdf");
+    }
+
+    document.getElementById("a4DoubleBtn").addEventListener("click", downloadA4PDF_DoubleSided);
+
+    // Sahifa ochilishi bilan preview
+    render();
+  </script>
+</body>
+</html>
