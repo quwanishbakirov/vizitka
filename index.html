@@ -55,7 +55,7 @@
     const PHONE_Y = 189;
 
     // ====== TELEFON STILI (Poppins) ======
-    const PHONE_FONT = "600 25px Poppins";
+    const PHONE_FONT = "300 25px Poppins";
     const PHONE_COLOR = "#1b1f2a";
 
     // ====== PDF GRID SETTINGS (ikkala sahifada ham bir xil) ======
@@ -95,8 +95,8 @@
       const phone = phoneInput.value.trim();
 
        // shrift/ko‘rinish
-        ctx.font = "25px Arial";
-        ctx.fillStyle = "#1b1f2a";
+        ctx.font = PHONE_FONT;
+        ctx.fillStyle = PHONE_COLOR;
         ctx.textBaseline = "middle";
 
       if (phone) ctx.fillText(phone, PHONE_X, PHONE_Y);
